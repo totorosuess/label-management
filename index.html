@@ -196,6 +196,18 @@
       </article>
     </template>
 
+    <div class="modal hidden" id="confirmModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="modal-title" id="confirmTitle">确认操作</div>
+        <div class="modal-body" id="confirmMessage">确定要继续吗？</div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="confirmCancel">取消</button>
+          <button class="btn" id="confirmOk">确认</button>
+        </div>
+      </div>
+    </div>
+
     <script src="app.js"></script>
   </body>
 </html>

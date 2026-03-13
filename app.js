@@ -30,6 +30,11 @@ const prevPage = document.getElementById("prevPage");
 const nextPage = document.getElementById("nextPage");
 const pageInfo = document.getElementById("pageInfo");
 const pageSizeSelect = document.getElementById("pageSizeSelect");
+const confirmModal = document.getElementById("confirmModal");
+const confirmTitle = document.getElementById("confirmTitle");
+const confirmMessage = document.getElementById("confirmMessage");
+const confirmCancel = document.getElementById("confirmCancel");
+const confirmOk = document.getElementById("confirmOk");
 
 const menuItems = document.querySelectorAll(".menu-item");
 const pages = document.querySelectorAll(".page");
@@ -38,6 +43,8 @@ let rawRecords = [];
 let editingId = null;
 let currentPage = 1;
 let pageSize = 20;
+let confirmResolve = null;
+const storageKey = "label_management_records_v1";
 
 const columns = {
   title: "experience_labels_name",
@@ -323,7 +330,13 @@ function escapeHtml(text) {
 function setDataFromText(text) {
   const rows = parseCSV(text);
   const records = normalizeRecords(rows);
-  rawRecords = records;
+  const merged = mergeWithDuplicateCheck(rawRecords, records);
+  if (!merged) {
+    alertAction("存在重复命名的标签", "批量导入的三级标签名称有重复，已取消导入。");
+    return;
+  }
+  rawRecords = merged;
+  persistRecords();
   currentPage = 1;
   updateFilters(rawRecords);
   renderManageTable(rawRecords);
@@ -370,6 +383,7 @@ function upsertRecord(formValues) {
     ];
   }
 
+  persistRecords();
   currentPage = 1;
   updateFilters(rawRecords);
   renderManageTable(rawRecords);
@@ -397,6 +411,7 @@ function loadForm(record) {
 
 function deleteRecord(id) {
   rawRecords = rawRecords.filter((record) => record.id !== id);
+  persistRecords();
   currentPage = 1;
   updateFilters(rawRecords);
   renderManageTable(rawRecords);
@@ -465,9 +480,19 @@ fileInput.addEventListener("change", (event) => {
   input.addEventListener("change", applyFilters);
 });
 
-labelForm.addEventListener("submit", (event) => {
+labelForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const values = getFormValues();
+  if (hasDuplicateLevel3(values.level3, editingId)) {
+    await alertAction("存在重复命名的标签", "三级标签名称重复，无法保存。");
+    return;
+  }
+  const isEdit = Boolean(editingId);
+  const ok = await confirmAction(
+    isEdit ? "确认编辑标签" : "确认新增标签",
+    isEdit ? "确定保存对该标签的修改吗？" : "确定新增该标签吗？"
+  );
+  if (!ok) return;
   upsertRecord(values);
 });
 
@@ -475,7 +500,7 @@ resetFormBtn.addEventListener("click", () => {
   resetForm();
 });
 
-manageTableBody.addEventListener("click", (event) => {
+manageTableBody.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
 
@@ -483,12 +508,16 @@ manageTableBody.addEventListener("click", (event) => {
   if (button.dataset.action === "edit") {
     const record = rawRecords.find((item) => item.id === id);
     if (!record) return;
+    const ok = await confirmAction("确认编辑标签", "确定进入编辑该标签吗？");
+    if (!ok) return;
     editingId = id;
     loadForm(record);
     switchPage("manage");
   }
 
   if (button.dataset.action === "delete") {
+    const ok = await confirmAction("确认删除标签", "删除后无法恢复，确定删除吗？");
+    if (!ok) return;
     deleteRecord(id);
   }
 });
@@ -526,9 +555,44 @@ pageSizeSelect.addEventListener("change", (event) => {
   renderManageTable(rawRecords);
 });
 
+function persistRecords() {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(rawRecords));
+  } catch (error) {
+    console.warn("Failed to persist records", error);
+  }
+}
+
+function restoreRecords() {
+  try {
+    const cached = localStorage.getItem(storageKey);
+    if (!cached) return;
+    const parsed = JSON.parse(cached);
+    if (!Array.isArray(parsed)) return;
+    rawRecords = parsed.map((record, idx) => ({
+      id: record.id || `${idx}-${Math.random().toString(16).slice(2)}`,
+      title: record.title || "",
+      level1: record.level1 || "",
+      level2: record.level2 || "",
+      level3: record.level3 || "",
+      line: record.line || "",
+      description: record.description || "",
+    }));
+  } catch (error) {
+    console.warn("Failed to restore records", error);
+  }
+}
+
 renderManageTable([]);
 updateStats([]);
 switchPage("manage");
+restoreRecords();
+if (rawRecords.length) {
+  currentPage = 1;
+  updateFilters(rawRecords);
+  renderManageTable(rawRecords);
+  applyFilters();
+}
 
 const floatingTooltip = document.createElement("div");
 floatingTooltip.className = "floating-tooltip";
@@ -580,4 +644,75 @@ document.addEventListener("mouseout", (event) => {
   const target = event.target.closest(".has-tooltip");
   if (!target) return;
   hideTooltip();
+});
+
+function hasDuplicateLevel3(level3Value, currentId) {
+  const value = String(level3Value || "").trim();
+  if (!value) return false;
+  return rawRecords.some(
+    (record) => record.level3 === value && record.id !== currentId
+  );
+}
+
+function mergeWithDuplicateCheck(existing, incoming) {
+  const seen = new Set(
+    existing.map((record) => String(record.level3 || "").trim()).filter(Boolean)
+  );
+
+  for (const record of incoming) {
+    const value = String(record.level3 || "").trim();
+    if (!value) continue;
+    if (seen.has(value)) {
+      return null;
+    }
+    seen.add(value);
+  }
+
+  return [...incoming, ...existing];
+}
+
+function confirmAction(title, message) {
+  confirmTitle.textContent = title;
+  confirmMessage.textContent = message;
+  confirmModal.classList.remove("hidden");
+  confirmCancel.classList.remove("hidden");
+  confirmOk.textContent = "确认";
+
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+  });
+}
+
+function alertAction(title, message) {
+  confirmTitle.textContent = title;
+  confirmMessage.textContent = message;
+  confirmCancel.classList.add("hidden");
+  confirmOk.textContent = "知道了";
+  confirmModal.classList.remove("hidden");
+
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+  });
+}
+
+function closeConfirm(result) {
+  confirmModal.classList.add("hidden");
+  if (confirmResolve) {
+    confirmResolve(result);
+    confirmResolve = null;
+  }
+}
+
+confirmCancel.addEventListener("click", () => {
+  closeConfirm(false);
+});
+
+confirmOk.addEventListener("click", () => {
+  closeConfirm(true);
+});
+
+confirmModal.addEventListener("click", (event) => {
+  if (event.target.classList.contains("modal-backdrop")) {
+    closeConfirm(false);
+  }
 });
