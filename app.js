@@ -1,7 +1,4 @@
 const fileInput = document.getElementById("fileInput");
-const dropzone = document.getElementById("dropzone");
-const loadSample = document.getElementById("loadSample");
-const clearData = document.getElementById("clearData");
 const searchInput = document.getElementById("searchInput");
 const lineFilter = document.getElementById("lineFilter");
 const level1Filter = document.getElementById("level1Filter");
@@ -15,7 +12,33 @@ const statLevels = document.getElementById("stat-levels");
 
 const cardTemplate = document.getElementById("cardTemplate");
 
+const pageTitle = document.getElementById("pageTitle");
+const pageDesc = document.getElementById("pageDesc");
+
+const labelForm = document.getElementById("labelForm");
+const formLine = document.getElementById("formLine");
+const formLevel1 = document.getElementById("formLevel1");
+const formLevel2 = document.getElementById("formLevel2");
+const formLevel3 = document.getElementById("formLevel3");
+const formDesc = document.getElementById("formDesc");
+const resetFormBtn = document.getElementById("resetForm");
+const manageTableBody = document.getElementById("manageTableBody");
+const manageMeta = document.getElementById("manageMeta");
+const selectAll = document.getElementById("selectAll");
+const bulkDelete = document.getElementById("bulkDelete");
+const exportCsv = document.getElementById("exportCsv");
+const prevPage = document.getElementById("prevPage");
+const nextPage = document.getElementById("nextPage");
+const pageInfo = document.getElementById("pageInfo");
+const pageSizeSelect = document.getElementById("pageSizeSelect");
+
+const menuItems = document.querySelectorAll(".menu-item");
+const pages = document.querySelectorAll(".page");
+
 let rawRecords = [];
+let editingId = null;
+let currentPage = 1;
+let pageSize = 20;
 
 const columns = {
   title: "experience_labels_name",
@@ -24,6 +47,17 @@ const columns = {
   level3: "experience_label3_name",
   line: "产品业务线",
   description: "体验标签对应的用户表现型",
+};
+
+const pageCopy = {
+  manage: {
+    title: "标签管理",
+    desc: "上传 CSV 并在表格里直接编辑、删除或新增标签。",
+  },
+  display: {
+    title: "标签展示",
+    desc: "按业务线和层级筛选标签，快速浏览标签详情。",
+  },
 };
 
 function parseCSV(text) {
@@ -197,7 +231,7 @@ function renderCards(records) {
     const levels = node.querySelector(".card-levels");
     const desc = node.querySelector(".card-desc");
 
-    title.textContent = record.title || "未命名标签";
+    title.textContent = "";
     pill.textContent = record.line || "未设置业务线";
 
     [record.level1, record.level2, record.level3]
@@ -210,17 +244,90 @@ function renderCards(records) {
       });
 
     desc.textContent = record.description || "暂无标签说明";
+    desc.classList.add("truncate-multi", "has-tooltip");
+    desc.dataset.tooltip = record.description || "暂无标签说明";
     fragment.appendChild(node);
   });
 
   cardGrid.appendChild(fragment);
 }
 
+function paginate(records) {
+  const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  return {
+    pageRecords: records.slice(start, end),
+    totalPages,
+  };
+}
+
+function updatePager(totalPages) {
+  pageInfo.textContent = `第 ${currentPage} / ${totalPages} 页`;
+  prevPage.disabled = currentPage <= 1;
+  nextPage.disabled = currentPage >= totalPages;
+}
+
+function renderManageTable(records) {
+  manageTableBody.innerHTML = "";
+  selectAll.checked = false;
+
+  if (!records.length) {
+    manageMeta.textContent = "暂无数据";
+    updatePager(1);
+    return;
+  }
+
+  manageMeta.textContent = `共 ${records.length} 条标签`;
+
+  const { pageRecords, totalPages } = paginate(records);
+  updatePager(totalPages);
+
+  const fragment = document.createDocumentFragment();
+  pageRecords.forEach((record) => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td><input type="checkbox" data-id="${record.id}" /></td>
+      <td>${escapeHtml(record.line)}</td>
+      <td>${escapeHtml(record.level1)}</td>
+      <td>${escapeHtml(record.level2)}</td>
+      <td>${escapeHtml(record.level3)}</td>
+      <td><span class="truncate-single has-tooltip" data-tooltip="${escapeHtml(
+        record.description
+      )}">${escapeHtml(record.description)}</span></td>
+      <td>
+        <div class="inline-actions">
+          <button class="btn ghost" data-action="edit" data-id="${record.id}">编辑</button>
+          <button class="btn ghost" data-action="delete" data-id="${record.id}">删除</button>
+        </div>
+      </td>
+    `;
+
+    fragment.appendChild(tr);
+  });
+
+  manageTableBody.appendChild(fragment);
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function setDataFromText(text) {
   const rows = parseCSV(text);
   const records = normalizeRecords(rows);
   rawRecords = records;
+  currentPage = 1;
   updateFilters(rawRecords);
+  renderManageTable(rawRecords);
   applyFilters();
 }
 
@@ -233,6 +340,122 @@ function handleFile(file) {
   reader.readAsText(file);
 }
 
+function resetForm() {
+  labelForm.reset();
+  editingId = null;
+}
+
+function deriveTitle(values) {
+  return (
+    values.level3 ||
+    values.level2 ||
+    values.level1 ||
+    values.line ||
+    "未命名标签"
+  );
+}
+
+function upsertRecord(formValues) {
+  if (editingId) {
+    rawRecords = rawRecords.map((record) =>
+      record.id === editingId ? { ...record, ...formValues } : record
+    );
+  } else {
+    rawRecords = [
+      {
+        id: `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        title: deriveTitle(formValues),
+        ...formValues,
+      },
+      ...rawRecords,
+    ];
+  }
+
+  currentPage = 1;
+  updateFilters(rawRecords);
+  renderManageTable(rawRecords);
+  applyFilters();
+  resetForm();
+}
+
+function getFormValues() {
+  return {
+    line: formLine.value.trim(),
+    level1: formLevel1.value.trim(),
+    level2: formLevel2.value.trim(),
+    level3: formLevel3.value.trim(),
+    description: formDesc.value.trim(),
+  };
+}
+
+function loadForm(record) {
+  formLine.value = record.line || "";
+  formLevel1.value = record.level1 || "";
+  formLevel2.value = record.level2 || "";
+  formLevel3.value = record.level3 || "";
+  formDesc.value = record.description || "";
+}
+
+function deleteRecord(id) {
+  rawRecords = rawRecords.filter((record) => record.id !== id);
+  currentPage = 1;
+  updateFilters(rawRecords);
+  renderManageTable(rawRecords);
+  applyFilters();
+  if (editingId === id) resetForm();
+}
+
+function exportToCsv() {
+  const header = [
+    columns.title,
+    columns.level1,
+    columns.level2,
+    columns.level3,
+    columns.line,
+    columns.description,
+  ];
+
+  const rows = rawRecords.map((record) => [
+    record.title,
+    record.level1,
+    record.level2,
+    record.level3,
+    record.line,
+    record.description,
+  ]);
+
+  const csv = [header, ...rows]
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell || "").replace(/"/g, '""')}"`)
+        .join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "labels.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function switchPage(target) {
+  pages.forEach((page) => {
+    page.classList.toggle("hidden", page.id !== `page-${target}`);
+  });
+
+  menuItems.forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === target);
+  });
+
+  pageTitle.textContent = pageCopy[target].title;
+  pageDesc.textContent = pageCopy[target].desc;
+}
+
 fileInput.addEventListener("change", (event) => {
   const file = event.target.files[0];
   handleFile(file);
@@ -243,40 +466,132 @@ fileInput.addEventListener("change", (event) => {
   input.addEventListener("change", applyFilters);
 });
 
-clearData.addEventListener("click", () => {
-  rawRecords = [];
-  cardGrid.innerHTML = "";
-  resultsMeta.textContent = "暂无数据";
-  updateStats([]);
+labelForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const values = getFormValues();
+  upsertRecord(values);
 });
 
-loadSample.addEventListener("click", () => {
-  const sample =
-    "experience_labels_name,experience_label1_name,experience_label2_name,experience_label3_name,产品业务线,体验标签对应的用户表现型\n" +
-    "视频音频异常,Creation,Video Sound,Detail Page,Creation,用户反馈音乐详情页加载异常或错误音乐展示\n" +
-    "上传体验,Creation,Upload,Fail,Creation,用户上传失败或进度卡住\n" +
-    "隐私设置,Account,Privacy,Settings,Account,用户希望调整隐私或权限设置";
-
-  setDataFromText(sample);
+resetFormBtn.addEventListener("click", () => {
+  resetForm();
 });
 
-function bindDropzone() {
-  dropzone.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    dropzone.classList.add("dragover");
-  });
+manageTableBody.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
 
-  dropzone.addEventListener("dragleave", () => {
-    dropzone.classList.remove("dragover");
-  });
+  const id = button.dataset.id;
+  if (button.dataset.action === "edit") {
+    const record = rawRecords.find((item) => item.id === id);
+    if (!record) return;
+    editingId = id;
+    loadForm(record);
+    switchPage("manage");
+  }
 
-  dropzone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    dropzone.classList.remove("dragover");
-    const file = event.dataTransfer.files[0];
-    handleFile(file);
+  if (button.dataset.action === "delete") {
+    deleteRecord(id);
+  }
+});
+
+selectAll.addEventListener("change", (event) => {
+  const checked = event.target.checked;
+  manageTableBody.querySelectorAll("input[type='checkbox']").forEach((box) => {
+    box.checked = checked;
   });
+});
+
+bulkDelete.addEventListener("click", () => {
+  const selected = Array.from(
+    manageTableBody.querySelectorAll("input[type='checkbox']:checked")
+  ).map((box) => box.dataset.id);
+
+  if (!selected.length) return;
+  rawRecords = rawRecords.filter((record) => !selected.includes(record.id));
+  currentPage = 1;
+  updateFilters(rawRecords);
+  renderManageTable(rawRecords);
+  applyFilters();
+});
+
+exportCsv.addEventListener("click", () => {
+  exportToCsv();
+});
+
+menuItems.forEach((item) => {
+  item.addEventListener("click", () => {
+    switchPage(item.dataset.view);
+  });
+});
+
+prevPage.addEventListener("click", () => {
+  currentPage -= 1;
+  renderManageTable(rawRecords);
+});
+
+nextPage.addEventListener("click", () => {
+  currentPage += 1;
+  renderManageTable(rawRecords);
+});
+
+pageSizeSelect.addEventListener("change", (event) => {
+  pageSize = Number(event.target.value) || 20;
+  currentPage = 1;
+  renderManageTable(rawRecords);
+});
+
+renderManageTable([]);
+updateStats([]);
+switchPage("manage");
+
+const floatingTooltip = document.createElement("div");
+floatingTooltip.className = "floating-tooltip";
+document.body.appendChild(floatingTooltip);
+
+function showTooltip(text) {
+  if (!text) return;
+  floatingTooltip.textContent = text;
+  floatingTooltip.classList.add("visible");
 }
 
-bindDropzone();
-updateStats([]);
+function hideTooltip() {
+  floatingTooltip.classList.remove("visible");
+}
+
+function moveTooltip(event) {
+  const offset = 14;
+  let x = event.clientX + offset;
+  let y = event.clientY + offset;
+
+  const rect = floatingTooltip.getBoundingClientRect();
+  const maxX = window.innerWidth - rect.width - offset;
+  const maxY = window.innerHeight - rect.height - offset;
+
+  if (x > maxX) x = maxX;
+  if (y > maxY) y = maxY;
+  if (x < offset) x = offset;
+  if (y < offset) y = offset;
+
+  floatingTooltip.style.left = `${x}px`;
+  floatingTooltip.style.top = `${y}px`;
+}
+
+document.addEventListener("mouseover", (event) => {
+  const target = event.target.closest(".has-tooltip");
+  if (!target) return;
+  const text = target.dataset.tooltip;
+  if (!text) return;
+  showTooltip(text);
+  moveTooltip(event);
+});
+
+document.addEventListener("mousemove", (event) => {
+  if (!floatingTooltip.classList.contains("visible")) return;
+  moveTooltip(event);
+});
+
+document.addEventListener("mouseout", (event) => {
+  const target = event.target.closest(".has-tooltip");
+  if (!target) return;
+  hideTooltip();
+});

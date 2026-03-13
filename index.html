@@ -16,84 +16,183 @@
     <div class="bg-shape shape-a"></div>
     <div class="bg-shape shape-b"></div>
 
-    <header class="app-header">
-      <div class="brand">
-        <div class="logo">LM</div>
-        <div>
-          <div class="title">标签管理平台</div>
-          <div class="subtitle">上传你的标签表，快速浏览与检索</div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">LM</div>
+          <div>
+            <div class="title">标签管理平台</div>
+            <div class="subtitle">上传、编辑与展示你的标签</div>
+          </div>
         </div>
-      </div>
-      <div class="stats" id="stats">
-        <div class="stat">
-          <div class="stat-label">标签总数</div>
-          <div class="stat-value" id="stat-total">0</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">业务线</div>
-          <div class="stat-value" id="stat-line">0</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">层级标签</div>
-          <div class="stat-value" id="stat-levels">0</div>
-        </div>
-      </div>
-    </header>
 
-    <main class="app-main">
-      <section class="panel upload-panel">
-        <div class="panel-title">上传标签 CSV</div>
-        <div class="upload-area" id="dropzone">
-          <div class="upload-copy">
-            <div class="upload-title">拖拽 CSV 到这里</div>
-            <div class="upload-desc">或点击选择文件</div>
-          </div>
-          <input type="file" id="fileInput" accept=".csv,text/csv" />
-        </div>
-        <div class="upload-actions">
-          <button class="btn" id="loadSample">加载示例数据</button>
-          <button class="btn ghost" id="clearData">清空</button>
-        </div>
-        <div class="hint">
-          支持列：`experience_labels_name`, `experience_label1_name`, `experience_label2_name`,
-          `experience_label3_name`, `产品业务线`, `体验标签对应的用户表现型`
-        </div>
-      </section>
+        <nav class="menu">
+          <button class="menu-item active" data-view="manage">
+            <span>标签管理</span>
+            <small>上传与编辑</small>
+          </button>
+          <button class="menu-item" data-view="display">
+            <span>标签展示</span>
+            <small>筛选与浏览</small>
+          </button>
+        </nav>
 
-      <section class="panel filter-panel">
-        <div class="panel-title">筛选与搜索</div>
-        <div class="filters">
-          <div class="field">
-            <label for="searchInput">关键词</label>
-            <input id="searchInput" type="text" placeholder="输入标签或描述" />
+        <div class="sidebar-footer">
+          <div class="stat">
+            <div class="stat-label">标签总数</div>
+            <div class="stat-value" id="stat-total">0</div>
           </div>
-          <div class="field">
-            <label for="lineFilter">业务线</label>
-            <select id="lineFilter">
-              <option value="">全部</option>
-            </select>
+          <div class="stat">
+            <div class="stat-label">业务线</div>
+            <div class="stat-value" id="stat-line">0</div>
           </div>
-          <div class="field">
-            <label for="level1Filter">一级标签</label>
-            <select id="level1Filter">
-              <option value="">全部</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="level2Filter">二级标签</label>
-            <select id="level2Filter">
-              <option value="">全部</option>
-            </select>
+          <div class="stat">
+            <div class="stat-label">层级标签</div>
+            <div class="stat-value" id="stat-levels">0</div>
           </div>
         </div>
-      </section>
+      </aside>
 
-      <section class="panel results-panel">
-        <div class="panel-title">标签展示</div>
-        <div class="results-meta" id="resultsMeta">暂无数据</div>
-        <div class="card-grid" id="cardGrid"></div>
-      </section>
-    </main>
+      <main class="main-content">
+        <header class="page-header">
+          <div>
+            <h1 id="pageTitle">标签管理</h1>
+            <p id="pageDesc">上传 CSV 并在表格里直接编辑、删除或新增标签。</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn ghost" id="exportCsv">导出 CSV</button>
+          </div>
+        </header>
+
+        <section class="page" id="page-manage">
+          <section class="panel upload-panel">
+            <div class="upload-header">
+              <div class="panel-title">批量新增标签</div>
+              <div class="upload-inline">
+                <label class="btn ghost" for="fileInput">选择CSV文件</label>
+                <input type="file" id="fileInput" accept=".csv,text/csv" />
+              </div>
+              <div class="upload-actions">
+              <a
+                class="btn ghost"
+                id="downloadTemplate"
+                href="/Users/bytedance/Desktop/batch upload template.csv"
+                download
+                >下载CSV模板</a
+              >
+              </div>
+            </div>
+          </section>
+
+          <section class="panel form-panel">
+            <div class="panel-title">新增 / 编辑标签</div>
+            <form id="labelForm" class="form-grid">
+              <div class="field">
+                <label for="formLine">业务线</label>
+                <input id="formLine" type="text" placeholder="产品业务线" />
+              </div>
+              <div class="field">
+                <label for="formLevel1">一级标签</label>
+                <input id="formLevel1" type="text" placeholder="experience_label1_name" />
+              </div>
+              <div class="field">
+                <label for="formLevel2">二级标签</label>
+                <input id="formLevel2" type="text" placeholder="experience_label2_name" />
+              </div>
+              <div class="field">
+                <label for="formLevel3">三级标签</label>
+                <input id="formLevel3" type="text" placeholder="experience_label3_name" />
+              </div>
+              <div class="field full">
+                <label for="formDesc">用户表现型描述</label>
+                <textarea id="formDesc" rows="4" placeholder="体验标签对应的用户表现型"></textarea>
+              </div>
+              <div class="form-actions">
+                <button class="btn" type="submit" id="saveLabel">保存</button>
+                <button class="btn ghost" type="button" id="resetForm">重置</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel table-panel">
+            <div class="panel-title">标签列表</div>
+            <div class="table-actions">
+              <span class="results-meta" id="manageMeta">暂无数据</span>
+              <div class="table-buttons">
+                <button class="btn ghost" id="bulkDelete">批量删除已选</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" id="selectAll" /></th>
+                    <th>业务线</th>
+                    <th>一级</th>
+                    <th>二级</th>
+                    <th>三级</th>
+                    <th>描述</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="manageTableBody"></tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <div class="pager" id="pager">
+                <button class="btn ghost" id="prevPage">上一页</button>
+                <span class="pager-info" id="pageInfo">第 1 / 1 页</span>
+                <button class="btn ghost" id="nextPage">下一页</button>
+              </div>
+              <div class="page-size">
+                <label for="pageSizeSelect">每页行数</label>
+                <select id="pageSizeSelect">
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="page hidden" id="page-display">
+          <section class="panel filter-panel">
+            <div class="panel-title">筛选与搜索</div>
+            <div class="filters">
+              <div class="field">
+                <label for="searchInput">关键词</label>
+                <input id="searchInput" type="text" placeholder="输入标签或描述" />
+              </div>
+              <div class="field">
+                <label for="lineFilter">业务线</label>
+                <select id="lineFilter">
+                  <option value="">全部</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="level1Filter">一级标签</label>
+                <select id="level1Filter">
+                  <option value="">全部</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="level2Filter">二级标签</label>
+                <select id="level2Filter">
+                  <option value="">全部</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel results-panel">
+            <div class="panel-title">标签展示</div>
+            <div class="results-meta" id="resultsMeta">暂无数据</div>
+            <div class="card-grid" id="cardGrid"></div>
+          </section>
+        </section>
+      </main>
+    </div>
 
     <template id="cardTemplate">
       <article class="label-card">
