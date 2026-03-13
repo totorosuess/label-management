@@ -186,25 +186,6 @@ body {
   margin-bottom: 16px;
 }
 
-.upload-header {
-  display: grid;
-  grid-template-columns: auto auto auto;
-  align-items: center;
-  gap: 16px;
-}
-
-.upload-header .panel-title {
-  margin-bottom: 0;
-}
-
-.upload-header .btn.ghost {
-  font-size: 16px;
-  padding: 0;
-  border: none;
-  color: var(--ink);
-  background: transparent;
-}
-
 .upload-inline {
   display: flex;
   align-items: center;
@@ -220,8 +201,26 @@ body {
 .upload-actions {
   display: flex;
   gap: 12px;
-  margin-top: 0;
   align-items: center;
+}
+
+.form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  grid-column: 1 / -1;
+}
+
+.form-footer .upload-actions .btn {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.form-footer input[type="file"] {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
 }
 
 .btn {
@@ -284,7 +283,9 @@ body {
 }
 
 .field textarea {
-  resize: vertical;
+  resize: none;
+  height: 44px;
+  line-height: 22px;
 }
 
 .field.full {
@@ -371,6 +372,11 @@ body {
   gap: 10px;
 }
 
+.pager .btn.ghost {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .pager-info {
   color: var(--muted);
   font-size: 12px;
@@ -392,6 +398,11 @@ body {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #fff;
+}
+
+.page-size .results-meta {
+  margin-left: 8px;
+  font-size: 12px;
 }
 
 .card-grid {

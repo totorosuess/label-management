@@ -65,27 +65,8 @@
         </header>
 
         <section class="page" id="page-manage">
-          <section class="panel upload-panel">
-            <div class="upload-header">
-              <div class="panel-title">批量新增标签</div>
-              <div class="upload-inline">
-                <label class="btn ghost" for="fileInput">选择CSV文件</label>
-                <input type="file" id="fileInput" accept=".csv,text/csv" />
-              </div>
-              <div class="upload-actions">
-              <a
-                class="btn ghost"
-                id="downloadTemplate"
-                href="/Users/bytedance/Desktop/batch upload template.csv"
-                download
-                >下载CSV模板</a
-              >
-              </div>
-            </div>
-          </section>
-
           <section class="panel form-panel">
-            <div class="panel-title">新增 / 编辑标签</div>
+            <div class="panel-title">新增标签</div>
             <form id="labelForm" class="form-grid">
               <div class="field">
                 <label for="formLine">业务线</label>
@@ -105,11 +86,24 @@
               </div>
               <div class="field full">
                 <label for="formDesc">用户表现型描述</label>
-                <textarea id="formDesc" rows="4" placeholder="体验标签对应的用户表现型"></textarea>
+                <textarea id="formDesc" rows="1" placeholder="体验标签对应的用户表现型"></textarea>
               </div>
-              <div class="form-actions">
-                <button class="btn" type="submit" id="saveLabel">保存</button>
-                <button class="btn ghost" type="button" id="resetForm">重置</button>
+              <div class="form-footer">
+                <div class="form-actions">
+                  <button class="btn" type="submit" id="saveLabel">保存</button>
+                  <button class="btn ghost" type="button" id="resetForm">重置</button>
+                </div>
+                <div class="upload-actions">
+                  <label class="btn" for="fileInput">批量上传</label>
+                  <input type="file" id="fileInput" accept=".csv,text/csv" />
+                  <a
+                    class="btn ghost"
+                    id="downloadTemplate"
+                    href="/Users/bytedance/Desktop/batch upload template.csv"
+                    download
+                    >下载CSV模板</a
+                  >
+                </div>
               </div>
             </form>
           </section>
@@ -117,10 +111,6 @@
           <section class="panel table-panel">
             <div class="panel-title">标签列表</div>
             <div class="table-actions">
-              <span class="results-meta" id="manageMeta">暂无数据</span>
-              <div class="table-buttons">
-                <button class="btn ghost" id="bulkDelete">批量删除已选</button>
-              </div>
             </div>
             <div class="table-wrap">
               <table>
@@ -151,6 +141,7 @@
                   <option value="50">50</option>
                   <option value="100">100</option>
                 </select>
+                <span class="results-meta" id="manageMeta">暂无数据</span>
               </div>
             </div>
           </section>

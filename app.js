@@ -25,7 +25,6 @@ const resetFormBtn = document.getElementById("resetForm");
 const manageTableBody = document.getElementById("manageTableBody");
 const manageMeta = document.getElementById("manageMeta");
 const selectAll = document.getElementById("selectAll");
-const bulkDelete = document.getElementById("bulkDelete");
 const exportCsv = document.getElementById("exportCsv");
 const prevPage = document.getElementById("prevPage");
 const nextPage = document.getElementById("nextPage");
@@ -499,19 +498,6 @@ selectAll.addEventListener("change", (event) => {
   manageTableBody.querySelectorAll("input[type='checkbox']").forEach((box) => {
     box.checked = checked;
   });
-});
-
-bulkDelete.addEventListener("click", () => {
-  const selected = Array.from(
-    manageTableBody.querySelectorAll("input[type='checkbox']:checked")
-  ).map((box) => box.dataset.id);
-
-  if (!selected.length) return;
-  rawRecords = rawRecords.filter((record) => !selected.includes(record.id));
-  currentPage = 1;
-  updateFilters(rawRecords);
-  renderManageTable(rawRecords);
-  applyFilters();
 });
 
 exportCsv.addEventListener("click", () => {
