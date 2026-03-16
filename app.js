@@ -35,6 +35,16 @@ const confirmTitle = document.getElementById("confirmTitle");
 const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancel = document.getElementById("confirmCancel");
 const confirmOk = document.getElementById("confirmOk");
+const editModal = document.getElementById("editModal");
+const editForm = document.getElementById("editForm");
+const editLine = document.getElementById("editLine");
+const editLevel1 = document.getElementById("editLevel1");
+const editLevel2 = document.getElementById("editLevel2");
+const editLevel3 = document.getElementById("editLevel3");
+const editDesc = document.getElementById("editDesc");
+const editCancel = document.getElementById("editCancel");
+const saveLabel = document.getElementById("saveLabel");
+const actionHeader = document.getElementById("actionHeader");
 
 const menuItems = document.querySelectorAll(".menu-item");
 const pages = document.querySelectorAll(".page");
@@ -45,6 +55,7 @@ let currentPage = 1;
 let pageSize = 20;
 let confirmResolve = null;
 const storageKey = "label_management_records_v1";
+let canEdit = false;
 
 const columns = {
   title: "experience_labels_name",
@@ -58,7 +69,7 @@ const columns = {
 const pageCopy = {
   manage: {
     title: "标签管理",
-    desc: "上传 CSV 并在表格里直接编辑、删除或新增标签。",
+    desc: "",
   },
   display: {
     title: "标签展示",
@@ -296,7 +307,7 @@ function renderManageTable(records) {
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td><input type="checkbox" data-id="${record.id}" /></td>
+      <td class="edit-only">${canEdit ? `<input type="checkbox" data-id="${record.id}" />` : ""}</td>
       <td>${escapeHtml(record.line)}</td>
       <td>${escapeHtml(record.level1)}</td>
       <td>${escapeHtml(record.level2)}</td>
@@ -304,11 +315,15 @@ function renderManageTable(records) {
       <td><span class="truncate-single has-tooltip" data-tooltip="${escapeHtml(
         record.description
       )}">${escapeHtml(record.description)}</span></td>
-      <td>
-        <div class="inline-actions">
-          <button class="btn ghost" data-action="edit" data-id="${record.id}">编辑</button>
-          <button class="btn ghost" data-action="delete" data-id="${record.id}">删除</button>
-        </div>
+      <td class="edit-only">
+        ${
+          canEdit
+            ? `<div class=\"inline-actions\">
+                <button class=\"btn ghost\" data-action=\"edit\" data-id=\"${record.id}\">编辑</button>
+                <button class=\"btn ghost\" data-action=\"delete\" data-id=\"${record.id}\">删除</button>
+              </div>`
+            : ""
+        }
       </td>
     `;
 
@@ -368,20 +383,14 @@ function deriveTitle(values) {
 }
 
 function upsertRecord(formValues) {
-  if (editingId) {
-    rawRecords = rawRecords.map((record) =>
-      record.id === editingId ? { ...record, ...formValues } : record
-    );
-  } else {
-    rawRecords = [
-      {
-        id: `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        title: deriveTitle(formValues),
-        ...formValues,
-      },
-      ...rawRecords,
-    ];
-  }
+  rawRecords = [
+    {
+      id: `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      title: deriveTitle(formValues),
+      ...formValues,
+    },
+    ...rawRecords,
+  ];
 
   persistRecords();
   currentPage = 1;
@@ -401,14 +410,6 @@ function getFormValues() {
   };
 }
 
-function loadForm(record) {
-  formLine.value = record.line || "";
-  formLevel1.value = record.level1 || "";
-  formLevel2.value = record.level2 || "";
-  formLevel3.value = record.level3 || "";
-  formDesc.value = record.description || "";
-}
-
 function deleteRecord(id) {
   rawRecords = rawRecords.filter((record) => record.id !== id);
   persistRecords();
@@ -416,7 +417,7 @@ function deleteRecord(id) {
   updateFilters(rawRecords);
   renderManageTable(rawRecords);
   applyFilters();
-  if (editingId === id) resetForm();
+  if (editingId === id) closeEditModal();
 }
 
 function exportToCsv() {
@@ -482,15 +483,15 @@ fileInput.addEventListener("change", (event) => {
 
 labelForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!canEdit) return;
   const values = getFormValues();
-  if (hasDuplicateLevel3(values.level3, editingId)) {
+  if (hasDuplicateLevel3(values.level3, null)) {
     await alertAction("存在重复命名的标签", "三级标签名称重复，无法保存。");
     return;
   }
-  const isEdit = Boolean(editingId);
   const ok = await confirmAction(
-    isEdit ? "确认编辑标签" : "确认新增标签",
-    isEdit ? "确定保存对该标签的修改吗？" : "确定新增该标签吗？"
+    "确认新增标签",
+    "确定新增该标签吗？"
   );
   if (!ok) return;
   upsertRecord(values);
@@ -503,6 +504,7 @@ resetFormBtn.addEventListener("click", () => {
 manageTableBody.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+  if (!canEdit) return;
 
   const id = button.dataset.id;
   if (button.dataset.action === "edit") {
@@ -510,9 +512,7 @@ manageTableBody.addEventListener("click", async (event) => {
     if (!record) return;
     const ok = await confirmAction("确认编辑标签", "确定进入编辑该标签吗？");
     if (!ok) return;
-    editingId = id;
-    loadForm(record);
-    switchPage("manage");
+    openEditModal(record);
   }
 
   if (button.dataset.action === "delete") {
@@ -523,6 +523,7 @@ manageTableBody.addEventListener("click", async (event) => {
 });
 
 selectAll.addEventListener("change", (event) => {
+  if (!canEdit) return;
   const checked = event.target.checked;
   manageTableBody.querySelectorAll("input[type='checkbox']").forEach((box) => {
     box.checked = checked;
@@ -593,6 +594,8 @@ if (rawRecords.length) {
   renderManageTable(rawRecords);
   applyFilters();
 }
+applyPermissions();
+checkPermission();
 
 const floatingTooltip = document.createElement("div");
 floatingTooltip.className = "floating-tooltip";
@@ -716,3 +719,116 @@ confirmModal.addEventListener("click", (event) => {
     closeConfirm(false);
   }
 });
+
+function openEditModal(record) {
+  editingId = record.id;
+  editLine.value = record.line || "";
+  editLevel1.value = record.level1 || "";
+  editLevel2.value = record.level2 || "";
+  editLevel3.value = record.level3 || "";
+  editDesc.value = record.description || "";
+  editModal.classList.remove("hidden");
+}
+
+function closeEditModal() {
+  editModal.classList.add("hidden");
+  editingId = null;
+}
+
+function updateRecord(id, values) {
+  rawRecords = rawRecords.map((record) =>
+    record.id === id ? { ...record, ...values, title: deriveTitle(values) } : record
+  );
+  persistRecords();
+  updateFilters(rawRecords);
+  renderManageTable(rawRecords);
+  applyFilters();
+}
+
+editForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!canEdit) return;
+  const values = {
+    line: editLine.value.trim(),
+    level1: editLevel1.value.trim(),
+    level2: editLevel2.value.trim(),
+    level3: editLevel3.value.trim(),
+    description: editDesc.value.trim(),
+  };
+
+  if (hasDuplicateLevel3(values.level3, editingId)) {
+    await alertAction("存在重复命名的标签", "三级标签名称重复，无法保存。");
+    return;
+  }
+
+  const ok = await confirmAction("确认编辑标签", "确定保存对该标签的修改吗？");
+  if (!ok) return;
+  updateRecord(editingId, values);
+  closeEditModal();
+});
+
+editCancel.addEventListener("click", () => {
+  if (!canEdit) return;
+  closeEditModal();
+});
+
+editModal.addEventListener("click", (event) => {
+  if (event.target.classList.contains("modal-backdrop")) {
+    closeEditModal();
+  }
+});
+
+function applyPermissions() {
+  document.body.classList.toggle("readonly", !canEdit);
+  formLine.disabled = !canEdit;
+  formLevel1.disabled = !canEdit;
+  formLevel2.disabled = !canEdit;
+  formLevel3.disabled = !canEdit;
+  formDesc.disabled = !canEdit;
+  editLine.disabled = !canEdit;
+  editLevel1.disabled = !canEdit;
+  editLevel2.disabled = !canEdit;
+  editLevel3.disabled = !canEdit;
+  editDesc.disabled = !canEdit;
+  saveLabel.disabled = !canEdit;
+  resetFormBtn.disabled = !canEdit;
+  fileInput.disabled = !canEdit;
+  selectAll.disabled = !canEdit;
+  if (!canEdit) {
+    closeEditModal();
+  }
+}
+
+async function checkPermission() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  const view = params.get("view");
+  const apiBase = params.get("api") || "http://localhost:8000";
+
+  if (view === "readonly" && !token) {
+    canEdit = false;
+    applyPermissions();
+    renderManageTable(rawRecords);
+    return;
+  }
+
+  if (!token) {
+    canEdit = false;
+    applyPermissions();
+    renderManageTable(rawRecords);
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${apiBase}/api/permission?token=${encodeURIComponent(token)}`);
+    if (!resp.ok) throw new Error("permission check failed");
+    const data = await resp.json();
+    canEdit = data.mode === "edit";
+  } catch (error) {
+    canEdit = false;
+    await alertAction("权限校验失败", "无法验证权限，已切换为只读模式。");
+  }
+
+  applyPermissions();
+  renderManageTable(rawRecords);
+}

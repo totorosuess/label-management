@@ -57,7 +57,7 @@
         <header class="page-header">
           <div>
             <h1 id="pageTitle">标签管理</h1>
-            <p id="pageDesc">上传 CSV 并在表格里直接编辑、删除或新增标签。</p>
+            <p id="pageDesc"></p>
           </div>
           <div class="header-actions">
             <button class="btn ghost" id="exportCsv">导出 CSV</button>
@@ -90,12 +90,12 @@
               </div>
               <div class="form-footer">
                 <div class="form-actions">
-                  <button class="btn" type="submit" id="saveLabel">保存</button>
-                  <button class="btn ghost" type="button" id="resetForm">重置</button>
+                  <button class="btn edit-only" type="submit" id="saveLabel">保存</button>
+                  <button class="btn ghost edit-only" type="button" id="resetForm">重置</button>
                 </div>
                 <div class="upload-actions">
-                  <label class="btn" for="fileInput">批量上传</label>
-                  <input type="file" id="fileInput" accept=".csv,text/csv" />
+                  <label class="btn edit-only" for="fileInput">批量上传</label>
+                  <input type="file" id="fileInput" class="edit-only" accept=".csv,text/csv" />
                   <a
                     class="btn ghost"
                     id="downloadTemplate"
@@ -116,13 +116,13 @@
               <table>
                 <thead>
                   <tr>
-                    <th><input type="checkbox" id="selectAll" /></th>
+                    <th class="edit-only"><input type="checkbox" id="selectAll" /></th>
                     <th>业务线</th>
                     <th>一级</th>
                     <th>二级</th>
                     <th>三级</th>
                     <th>描述</th>
-                    <th>操作</th>
+                    <th class="edit-only" id="actionHeader">操作</th>
                   </tr>
                 </thead>
                 <tbody id="manageTableBody"></tbody>
@@ -205,6 +205,39 @@
           <button class="btn ghost" id="confirmCancel">取消</button>
           <button class="btn" id="confirmOk">确认</button>
         </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="editModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+        <div class="modal-title" id="editTitle">编辑标签</div>
+        <form id="editForm" class="form-grid">
+          <div class="field">
+            <label for="editLine">业务线</label>
+            <input id="editLine" type="text" />
+          </div>
+          <div class="field">
+            <label for="editLevel1">一级标签</label>
+            <input id="editLevel1" type="text" />
+          </div>
+          <div class="field">
+            <label for="editLevel2">二级标签</label>
+            <input id="editLevel2" type="text" />
+          </div>
+          <div class="field">
+            <label for="editLevel3">三级标签</label>
+            <input id="editLevel3" type="text" />
+          </div>
+          <div class="field full">
+            <label for="editDesc">用户表现型描述</label>
+            <textarea id="editDesc" rows="1"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button class="btn ghost" type="button" id="editCancel">取消</button>
+            <button class="btn" type="submit" id="editSave">保存</button>
+          </div>
+        </form>
       </div>
     </div>
 
